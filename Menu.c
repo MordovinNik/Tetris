@@ -16,7 +16,7 @@ typedef struct
 {
   BOOLEAN isActive;
   MYBUTTON *buttons;
-  UINT numberOfButtons;
+  int numberOfButtons;
   int WindowCode;//<0 если окно отображается сразу иначе будет отображено только если будет активна кнопка с кодом этого окна
   COLORREF Color;
   POINT leftPos, rightPos;
@@ -25,7 +25,7 @@ typedef struct
 typedef struct
 {
   MYWINDOW *windows;
-  UINT numberOfWindows;
+  int numberOfWindows;
 }MYMENU;
 
 enum COMMANDS
@@ -293,7 +293,7 @@ void SetWindowActive(MYMENU* menu, int code, BOOLEAN isActive)
       menu->windows[i].isActive = isActive;
 }
 
-LPSTR SetActiveElement(void* menuV, WPARAM key)
+LPSTR SetActiveElement(void* menuV, MKEY key)
 {
   MYMENU *menu = (MYMENU*)menuV;
   int indexI = -1, indexJ = -1;
@@ -318,7 +318,7 @@ LPSTR SetActiveElement(void* menuV, WPARAM key)
       {
         menu->windows[i].buttons[0].isActive = TRUE;
         indexI = i; indexJ = 0;
-        if (key == VK_LEFT || key == VK_RIGHT)
+        if (key == LEFT || key == RIGHT)
           break;
         else
           return NULL;
@@ -328,7 +328,7 @@ LPSTR SetActiveElement(void* menuV, WPARAM key)
   if (indexI != -1)
     switch (key)
     {
-      case VK_LEFT:
+      case LEFT:
         if (menu->windows[indexI].WindowCode != -1)
         {
           //закрываем текущее активное окно, если оно было вызвано одной из кнопок и делаем активной ту кнопку
@@ -346,7 +346,7 @@ LPSTR SetActiveElement(void* menuV, WPARAM key)
           }
         }
         break;
-      case VK_RIGHT:
+      case RIGHT:
         //переходим к первой кнопке правого окна
         if (menu->windows[indexI].buttons[indexJ].TriggerWindowCode != -1)
         {
@@ -365,7 +365,7 @@ LPSTR SetActiveElement(void* menuV, WPARAM key)
         }
         break;
 
-      case VK_DOWN:
+      case DOWN:
 
         //сделать активной кнопку ниже
         menu->windows[indexI].buttons[indexJ].isActive = FALSE;
@@ -384,7 +384,7 @@ LPSTR SetActiveElement(void* menuV, WPARAM key)
 
         break;
 
-      case VK_UP:
+      case UP:
 
         menu->windows[indexI].buttons[indexJ].isActive = FALSE;
         if (menu->windows[indexI].buttons[indexJ].TriggerWindowCode != -1)
@@ -399,7 +399,7 @@ LPSTR SetActiveElement(void* menuV, WPARAM key)
           SetWindowActive(menu, menu->windows[indexI].buttons[indexJ].TriggerWindowCode, TRUE);
         break;
 
-      case VK_RETURN:
+      case ENTER:
 
         return menu->windows[indexI].buttons[indexJ].name;
         break;
