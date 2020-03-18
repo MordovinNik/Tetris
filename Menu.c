@@ -56,7 +56,7 @@ int GetDigit(FILE* stream, int* c)
 
   do
   {
-    str[strIndex] = *c;
+    str[strIndex] = (char)*c;
     strIndex++;
 
   } while (isdigit(*c = getc(stream)));
@@ -75,7 +75,7 @@ int GetButtonName(FILE* stream, char* str, int* currentChar)
 
   while ((*currentChar = getc(stream)) != '\"' && i < 257)
   {
-    str[i] = *currentChar;
+    str[i] = (char)*currentChar;
     i++;
   }
   return 0;
@@ -435,7 +435,7 @@ int PaintMenu(void* menuVoid, HDC hdc)
       //нарисовать кнопку
       MYBUTTON button = menu->windows[i].buttons[j];
       HBRUSH hButtonBrush;
-      HPEN hBorderPen = CreatePen(PS_SOLID, 1, RGB(0, 0, 0));
+      hBorderPen = CreatePen(PS_SOLID, 1, RGB(0, 0, 0));
 
       if (button.isActive)
       {
