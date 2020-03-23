@@ -35,7 +35,7 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _
 
 LRESULT CALLBACK WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
-  MKEY key;
+  MKEY key = ERR;
   switch (msg)
   {
     case WM_COMMAND:
@@ -74,6 +74,8 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
           key = ROTATE_LEFT;
           break;
       }
+      MoveFigure(key);
+      InvalidateRect(hWnd, NULL, TRUE);
       break;
 
     case WM_DESTROY:

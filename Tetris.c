@@ -22,43 +22,10 @@ struct MSCENE
 
 #define MBLOCK_SIZE 21
 
-void* startMenu = NULL;
-void* inGameMenu = NULL;
-
-void InitGame()
-{
-
-  for (int i = 0; i < 20; i++)
-    for (int j = 0; j < 10; j++)
-      scene.isEmpty[i][j] = TRUE;
-
-  scene.score = 0;
-
-}
-
-int InitMenu(LPSTR menuFileName)
-{
-  //открываем файл и передаем поток в функцию получающую параметрвы меню из файла
-  FILE* stream;
-  fopen_s(&stream, menuFileName, "r");
-
-  if (!stream)
-    return -1;
-
-  startMenu = GetMenuProperties(stream);
-  inGameMenu = GetMenuProperties(stream);
-
-  if (!(startMenu && inGameMenu))
-    return -2;
-
-  return 0;
-}
-
-void CloseGame()
-{
-  DeleteMyMenu(startMenu);
-  DeleteMyMenu(inGameMenu);
-}
+static void* startMenu = NULL;
+static void* inGameMenu = NULL;
+static BOOLEAN isPause = FALSE;///////////////////////////////////////////////////////////
+static BOOLEAN gameStarted = FALSE;
 
 void CreateFigure()
 {
@@ -171,6 +138,43 @@ void CreateFigure()
   scene.figure = figure;
 }
 
+void InitGame()
+{
+  for (int i = 0; i < 20; i++)
+    for (int j = 0; j < 10; j++)
+      scene.isEmpty[i][j] = TRUE;
+
+  scene.score = 0;
+  CreateFigure();
+
+}
+
+int InitMenu(LPSTR menuFileName)
+{
+  //открываем файл и передаем поток в функцию получающую параметрвы меню из файла
+  FILE* stream;
+  fopen_s(&stream, menuFileName, "r");
+
+  if (!stream)
+    return -1;
+
+  startMenu = GetMenuProperties(stream);
+  inGameMenu = GetMenuProperties(stream);
+
+  if (!(startMenu && inGameMenu))
+    return -2;
+
+  return 0;
+}
+
+void CloseGame()
+{
+  DeleteMyMenu(startMenu);
+  DeleteMyMenu(inGameMenu);
+}
+
+
+
 void PaintSquare(HDC hdc, MSQUARE square)
 {
   HBRUSH hBrush = CreateSolidBrush(square.color);
@@ -190,4 +194,81 @@ void PaintScene(HDC hdc)
 
   for (int i = 0; i < 4; i++)
     PaintSquare(hdc, scene.figure.squares[i]);
+  SetPixel(hdc, scene.figure.center.x, scene.figure.center.y, RGB(255, 0, 0));
+}
+
+int MoveFigure(MKEY key)
+{
+  //если игра на паузе, то передаем все нажатия в меню
+  if (isPause)
+  {
+    LPSTR str;
+
+    if (gameStarted)
+      str = SetActiveElement(inGameMenu, key);
+    else
+      str = SetActiveElement(startMenu, key);
+
+    if (!(strcmp(str, "Start") && strcmp(str, "Continue")))
+    {
+      gameStarted = TRUE;
+      isPause = FALSE;
+    }
+    return 0;
+    //добавить выход из игры
+  }
+  //если игра не на паузе, то перемещаем фигуру, 
+
+  MFIGURE figure = scene.figure;//создаем копию изначальной фигуры, чтобы откатить изменения было проще при возникновыении ошибок
+  POINT offset = { 0,0 };
+  POINT vector;
+
+  switch (key)
+  {
+    case RIGHT:
+      offset.x = MBLOCK_SIZE + 1;
+      break;
+    case LEFT:
+      offset.x = -MBLOCK_SIZE - 1;
+      break;
+    case DOWN:
+      offset.y = MBLOCK_SIZE + 1;
+      break;
+    case UP:
+      offset.y = -MBLOCK_SIZE - 1;
+      break;
+    case ROTATE_RIGHT:
+      for (int i = 0; i < 4; i++)
+      {
+        vector.x = figure.squares[i].leftTop.x - figure.center.x;
+        vector.y = figure.squares[i].leftTop.y - figure.center.y;
+        figure.squares[i].leftTop.x = figure.center.x - vector.y;
+        figure.squares[i].leftTop.y = figure.center.y + vector.x;
+        figure.squares[i].leftTop.x -= MBLOCK_SIZE-1;
+      }
+      break;
+    case ROTATE_LEFT:
+      for (int i = 0; i < 4; i++)
+      {
+        vector.x = figure.squares[i].leftTop.x - figure.center.x;
+        vector.y = figure.squares[i].leftTop.y - figure.center.y;
+        figure.squares[i].leftTop.x = figure.center.x + vector.y;
+        figure.squares[i].leftTop.y = figure.center.y - vector.x;
+        figure.squares[i].leftTop.y -= MBLOCK_SIZE - 1;
+      }
+      break;
+  }
+
+  figure.center.x += offset.x;
+  figure.center.y += offset.y;
+
+  for (int i = 0; i < 4; i++)
+  {
+    figure.squares[i].leftTop.x += offset.x;
+    figure.squares[i].leftTop.y += offset.y;
+  }
+  
+  //Нужна проверка расположения фигуры
+  scene.figure = figure;
+  return 0;
 }
