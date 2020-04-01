@@ -19,10 +19,10 @@ int createMyWindow(HINSTANCE hInstance, int nCmdShow);
 
 int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _In_ LPSTR lpszCmdParam, _In_ int nCmdShow)
 {
-  InitGame();
-
-
+  /*InitMenu("menu.txt");*/
+  InitMenu("menu.txt");
   createMyWindow(hInstance, nCmdShow);
+  SetTimer(hwnd, 1000, 500, NULL);
 
   MSG msg;
   while (GetMessage(&msg, 0, 0, 0))
@@ -38,6 +38,12 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
   MKEY key = ERR;
   switch (msg)
   {
+    case WM_TIMER:
+    {
+      GameTick();
+      InvalidateRect(hWnd, NULL, TRUE);
+      break;
+    }
     case WM_COMMAND:
     {
       /*switch (LOWORD(wParam))
@@ -74,7 +80,8 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
           key = ROTATE_LEFT;
           break;
       }
-      MoveFigure(key);
+      if(MoveFigure(key) == -1)
+        PostQuitMessage(0);
       InvalidateRect(hWnd, NULL, TRUE);
       break;
 

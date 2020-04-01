@@ -14,9 +14,11 @@ typedef struct
 
 struct MSCENE
 {
+  int rightWall, downWall;
+
   MSQUARE squares[20][10];
   MFIGURE figure;
-  BOOLEAN isEmpty[20][10];
+  int isEmpty[20][10];
   int score;
 }scene;
 
@@ -25,9 +27,10 @@ struct MSCENE
 static void* startMenu = NULL;
 static void* inGameMenu = NULL;
 static BOOLEAN isPause = FALSE;///////////////////////////////////////////////////////////
-static BOOLEAN gameStarted = FALSE;
+static BOOLEAN gameStarted = TRUE;
+static int record = 0;
 
-void CreateFigure()
+int CreateFigure()
 {
   MFIGURE figure;
   BOOLEAN correct;
@@ -42,8 +45,8 @@ void CreateFigure()
 
   //инициализируем положение первых 2 квадратов всегда одинаково,чтобы ускорить и упростить процесс поиска центра
 
-  figure.squares[0].leftTop.x = 100;
-  figure.squares[0].leftTop.y = 50;
+  figure.squares[0].leftTop.x = 4 * MBLOCK_SIZE + 4;
+  figure.squares[0].leftTop.y = -3 * MBLOCK_SIZE - 3;
 
   figure.squares[1].leftTop = figure.squares[0].leftTop;
   figure.squares[1].leftTop.y += MBLOCK_SIZE + 1;
@@ -57,7 +60,7 @@ void CreateFigure()
     if (index == 2)
       figure.squares[index].leftTop = figure.squares[1].leftTop;
     else
-      figure.squares[index].leftTop = figure.squares[1 + rand() % 2].leftTop;
+      figure.squares[index].leftTop = figure.squares[1 + ((rand() % 4 > 2) ? 0 : 1)].leftTop;
 
     switch (direction)//смещаем блок относительно предыдущего в случайную сторону
     {
@@ -136,17 +139,20 @@ void CreateFigure()
   }
 
   scene.figure = figure;
+  return 0;
 }
 
 void InitGame()
 {
+  scene.downWall = (MBLOCK_SIZE + 1) * 15 - 1;
+  scene.rightWall = (MBLOCK_SIZE + 1) * 10 - 1;
+
   for (int i = 0; i < 20; i++)
     for (int j = 0; j < 10; j++)
       scene.isEmpty[i][j] = TRUE;
 
   scene.score = 0;
   CreateFigure();
-
 }
 
 int InitMenu(LPSTR menuFileName)
@@ -154,7 +160,7 @@ int InitMenu(LPSTR menuFileName)
   //открываем файл и передаем поток в функцию получающую параметрвы меню из файла
   FILE* stream;
   fopen_s(&stream, menuFileName, "r");
-
+  
   if (!stream)
     return -1;
 
@@ -164,6 +170,9 @@ int InitMenu(LPSTR menuFileName)
   if (!(startMenu && inGameMenu))
     return -2;
 
+  gameStarted = FALSE;
+  isPause = FALSE;
+
   return 0;
 }
 
@@ -172,8 +181,6 @@ void CloseGame()
   DeleteMyMenu(startMenu);
   DeleteMyMenu(inGameMenu);
 }
-
-
 
 void PaintSquare(HDC hdc, MSQUARE square)
 {
@@ -187,20 +194,44 @@ void PaintSquare(HDC hdc, MSQUARE square)
 
 void PaintScene(HDC hdc)
 {
-  for (int i = 0; i < 20; i++)
-    for (int j = 0; j < 10; j++)
-      if (!scene.isEmpty)
-        PaintSquare(hdc, scene.squares[i][j]);
+  if (!gameStarted)
+  {
+    PaintMenu(startMenu, hdc);
+    WCHAR str[11];
+    _itow_s(record, str, 10, 10);
+    TextOutW(hdc, 120, 0, str, lstrlenW(str));
+  }
+  else if (isPause)
+    PaintMenu(inGameMenu, hdc);
+  else
+  {
+    for (int i = 0; i < 20; i++)
+      for (int j = 0; j < 10; j++)
+        if (!scene.isEmpty[i][j])
+          PaintSquare(hdc, scene.squares[i][j]);
 
-  for (int i = 0; i < 4; i++)
-    PaintSquare(hdc, scene.figure.squares[i]);
-  SetPixel(hdc, scene.figure.center.x, scene.figure.center.y, RGB(255, 0, 0));
+    for (int i = 0; i < 4; i++)
+      PaintSquare(hdc, scene.figure.squares[i]);
+    //SetPixel(hdc, scene.figure.center.x, scene.figure.center.y, RGB(255, 0, 0));
+    MoveToEx(hdc, scene.rightWall - 1, 0, NULL);
+    LineTo(hdc, scene.rightWall - 1, scene.downWall - 1);
+    LineTo(hdc, 0, scene.downWall - 1);
+    WCHAR str[11];
+    _itow_s(scene.score, str, 10, 10);
+    TextOutW(hdc, scene.rightWall + 2, 0, str, lstrlenW(str));
+  }
 }
 
 int MoveFigure(MKEY key)
 {
   //если игра на паузе, то передаем все нажатия в меню
-  if (isPause)
+
+  if (key == ESCAPE)
+  {
+    isPause = TRUE;
+  }
+
+  if (isPause || !gameStarted)
   {
     LPSTR str;
 
@@ -208,11 +239,30 @@ int MoveFigure(MKEY key)
       str = SetActiveElement(inGameMenu, key);
     else
       str = SetActiveElement(startMenu, key);
+    if (!str)
+      return 0;
 
     if (!(strcmp(str, "Start") && strcmp(str, "Continue")))
     {
+      if (!gameStarted)
+        InitGame();
       gameStarted = TRUE;
       isPause = FALSE;
+      
+    }
+
+    if (!strcmp(str, "Exit"))
+    {
+      if (gameStarted)
+      {
+        gameStarted = FALSE;
+        return 0;
+      }
+      else
+      {
+        CloseGame();
+        return -1;
+      }
     }
     return 0;
     //добавить выход из игры
@@ -222,6 +272,7 @@ int MoveFigure(MKEY key)
   MFIGURE figure = scene.figure;//создаем копию изначальной фигуры, чтобы откатить изменения было проще при возникновыении ошибок
   POINT offset = { 0,0 };
   POINT vector;
+  int indexI, indexJ;
 
   switch (key)
   {
@@ -244,7 +295,7 @@ int MoveFigure(MKEY key)
         vector.y = figure.squares[i].leftTop.y - figure.center.y;
         figure.squares[i].leftTop.x = figure.center.x - vector.y;
         figure.squares[i].leftTop.y = figure.center.y + vector.x;
-        figure.squares[i].leftTop.x -= MBLOCK_SIZE-1;
+        figure.squares[i].leftTop.x -= MBLOCK_SIZE - 1;
       }
       break;
     case ROTATE_LEFT:
@@ -267,8 +318,72 @@ int MoveFigure(MKEY key)
     figure.squares[i].leftTop.x += offset.x;
     figure.squares[i].leftTop.y += offset.y;
   }
-  
+
   //Нужна проверка расположения фигуры
+  for (int i = 0; i < 4; i++)
+  {
+    if (figure.squares[i].leftTop.x > scene.rightWall || figure.squares[i].leftTop.x < 0 ||
+      figure.squares[i].leftTop.y > scene.downWall)
+      return 1;
+
+    indexI = figure.squares[i].leftTop.y / (MBLOCK_SIZE + 1);
+    indexJ = figure.squares[i].leftTop.x / (MBLOCK_SIZE + 1);
+
+    if (indexI >= 0 && indexJ >= 0 && !scene.isEmpty[indexI][indexJ])//столкновение с другими блоками
+      return 2;
+  }
+
   scene.figure = figure;
+  return 0;
+}
+
+int GameTick()
+{
+  int indexI, indexJ;
+  int counter;
+  if (!isPause && gameStarted)
+    if (MoveFigure(DOWN))
+    {
+      for (int i = 0; i < 4; i++)
+      {
+        indexI = scene.figure.squares[i].leftTop.y / (MBLOCK_SIZE + 1);
+        indexJ = scene.figure.squares[i].leftTop.x / (MBLOCK_SIZE + 1);
+        if (indexI < 0)
+        {
+          gameStarted = FALSE;
+          if (scene.score > record)
+            record = scene.score;
+        }
+        scene.isEmpty[indexI][indexJ] = FALSE;
+        scene.squares[indexI][indexJ] = scene.figure.squares[i];
+      }
+
+      if (CreateFigure());//gameover
+
+      for (int i = 0; i < 15; i++)
+      {
+        counter = 0;
+        for (int j = 0; j < 10; j++)
+          if (!scene.isEmpty[i][j])
+            counter++;
+
+        if (counter == 10)
+        {
+          scene.score++;
+          for (int j = 0; j < 10; j++)
+            scene.isEmpty[0][j] = TRUE;
+
+          for (int k = i; k > 0; k--)
+            for (int j = 0; j < 10; j++)
+            {
+              scene.isEmpty[k][j] = scene.isEmpty[k - 1][j];
+              scene.squares[k][j].leftTop.x = scene.squares[k - 1][j].leftTop.x;
+              scene.squares[k][j].leftTop.y = scene.squares[k - 1][j].leftTop.y + MBLOCK_SIZE + 1;
+              scene.squares[k][j].color = scene.squares[k - 1][j].color;
+            }
+          i = 0;
+        }
+      }
+    }
   return 0;
 }
