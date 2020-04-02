@@ -12,29 +12,43 @@ typedef struct
   POINT center;
 }MFIGURE;
 
+typedef struct
+{
+  MSQUARE square;
+  int isEmpty;
+}SCENESQUARE;
+
 struct MSCENE
 {
   int rightWall, downWall;
-
-  MSQUARE squares[20][10];
+  SCENESQUARE sceneSquares[20][10];
   MFIGURE figure;
-  int isEmpty[20][10];
   int score;
 }scene;
 
 #define MBLOCK_SIZE 21
 
-static void* startMenu = NULL;
-static void* inGameMenu = NULL;
+static MYMENU* startMenu = NULL;
+static MYMENU* inGameMenu = NULL;
 static BOOLEAN isPause = FALSE;///////////////////////////////////////////////////////////
 static BOOLEAN gameStarted = TRUE;
 static int record = 0;
+
+BOOLEAN CheckSquaresPlacement(MFIGURE figure,int currentSquareIndex)
+{
+  for (int i = 0; i < currentSquareIndex; i++)
+    for (int j = i + 1; j <= currentSquareIndex; j++)
+      if (figure.squares[i].leftTop.x == figure.squares[j].leftTop.x &&
+        figure.squares[i].leftTop.y == figure.squares[j].leftTop.y)
+        return FALSE;
+  return TRUE;
+}
 
 int CreateFigure()
 {
   MFIGURE figure;
   BOOLEAN correct;
-  int index = 2;
+  int currentSquareIndex = 2;
   enum { TOP, RIGHT, BOTTOM, LEFT } direction;
   COLORREF color = RGB(rand() % 256, rand() % 256, rand() % 256);
   int length = 1, height = 2;
@@ -51,49 +65,45 @@ int CreateFigure()
   figure.squares[1].leftTop = figure.squares[0].leftTop;
   figure.squares[1].leftTop.y += MBLOCK_SIZE + 1;
 
-  while (index < 4)
+  while (currentSquareIndex < 4)
   {
     isLength = -1;
     correct = TRUE;
     direction = rand() % 4;
 
-    if (index == 2)
-      figure.squares[index].leftTop = figure.squares[1].leftTop;
+    if (currentSquareIndex == 2)
+      figure.squares[currentSquareIndex].leftTop = figure.squares[1].leftTop;
     else
-      figure.squares[index].leftTop = figure.squares[1 + ((rand() % 4 > 2) ? 0 : 1)].leftTop;
+      figure.squares[currentSquareIndex].leftTop = figure.squares[1 + ((rand() % 4 > 2) ? 0 : 1)].leftTop;
 
     switch (direction)//смещаем блок относительно предыдущего в случайную сторону
     {
       case TOP:
-        figure.squares[index].leftTop.y -= MBLOCK_SIZE + 1;
+        figure.squares[currentSquareIndex].leftTop.y -= MBLOCK_SIZE + 1;
         isLength = -1;
         break;
       case RIGHT:
-        figure.squares[index].leftTop.x += MBLOCK_SIZE + 1;
+        figure.squares[currentSquareIndex].leftTop.x += MBLOCK_SIZE + 1;
         length++;
         isLength = 1;
         break;
       case BOTTOM:
-        figure.squares[index].leftTop.y += MBLOCK_SIZE + 1;
+        figure.squares[currentSquareIndex].leftTop.y += MBLOCK_SIZE + 1;
         height++;
         isLength = 0;
         break;
       case LEFT:
-        figure.squares[index].leftTop.x -= MBLOCK_SIZE + 1;
+        figure.squares[currentSquareIndex].leftTop.x -= MBLOCK_SIZE + 1;
         length++;
         isLength = 1;
     }
 
     //проверяем, что блоки в фигуре не пересеклись
 
-    for (int i = 0; i < index; i++)
-      for (int j = i + 1; j <= index; j++)
-        if (figure.squares[i].leftTop.x == figure.squares[j].leftTop.x &&
-          figure.squares[i].leftTop.y == figure.squares[j].leftTop.y)
-          correct = FALSE;
+    correct = CheckSquaresPlacement(figure,currentSquareIndex);
 
     if (correct)
-      index++;
+      currentSquareIndex++;
     else
     {
       if (isLength == 1)
@@ -149,7 +159,7 @@ void InitGame()
 
   for (int i = 0; i < 20; i++)
     for (int j = 0; j < 10; j++)
-      scene.isEmpty[i][j] = TRUE;
+      scene.sceneSquares[i][j].isEmpty = TRUE;
 
   scene.score = 0;
   CreateFigure();
@@ -207,8 +217,8 @@ void PaintScene(HDC hdc)
   {
     for (int i = 0; i < 20; i++)
       for (int j = 0; j < 10; j++)
-        if (!scene.isEmpty[i][j])
-          PaintSquare(hdc, scene.squares[i][j]);
+        if (!scene.sceneSquares[i][j].isEmpty)
+          PaintSquare(hdc, scene.sceneSquares[i][j].square);
 
     for (int i = 0; i < 4; i++)
       PaintSquare(hdc, scene.figure.squares[i]);
@@ -329,7 +339,7 @@ int MoveFigure(MKEY key)
     indexI = figure.squares[i].leftTop.y / (MBLOCK_SIZE + 1);
     indexJ = figure.squares[i].leftTop.x / (MBLOCK_SIZE + 1);
 
-    if (indexI >= 0 && indexJ >= 0 && !scene.isEmpty[indexI][indexJ])//столкновение с другими блоками
+    if (indexI >= 0 && indexJ >= 0 && !scene.sceneSquares[indexI][indexJ].isEmpty)//столкновение с другими блоками
       return 2;
   }
 
@@ -354,8 +364,8 @@ int GameTick()
           if (scene.score > record)
             record = scene.score;
         }
-        scene.isEmpty[indexI][indexJ] = FALSE;
-        scene.squares[indexI][indexJ] = scene.figure.squares[i];
+        scene.sceneSquares[indexI][indexJ].isEmpty = FALSE;
+        scene.sceneSquares[indexI][indexJ].square = scene.figure.squares[i];
       }
 
       if (CreateFigure());//gameover
@@ -364,22 +374,22 @@ int GameTick()
       {
         counter = 0;
         for (int j = 0; j < 10; j++)
-          if (!scene.isEmpty[i][j])
+          if (!scene.sceneSquares[i][j].isEmpty)
             counter++;
 
         if (counter == 10)
         {
           scene.score++;
           for (int j = 0; j < 10; j++)
-            scene.isEmpty[0][j] = TRUE;
+            scene.sceneSquares[0][j].isEmpty = TRUE;
 
           for (int k = i; k > 0; k--)
             for (int j = 0; j < 10; j++)
             {
-              scene.isEmpty[k][j] = scene.isEmpty[k - 1][j];
-              scene.squares[k][j].leftTop.x = scene.squares[k - 1][j].leftTop.x;
-              scene.squares[k][j].leftTop.y = scene.squares[k - 1][j].leftTop.y + MBLOCK_SIZE + 1;
-              scene.squares[k][j].color = scene.squares[k - 1][j].color;
+              scene.sceneSquares[k][j].isEmpty = scene.sceneSquares[k - 1][j].isEmpty;
+              scene.sceneSquares[k][j].square.leftTop.x = scene.sceneSquares[k - 1][j].square.leftTop.x;
+              scene.sceneSquares[k][j].square.leftTop.y = scene.sceneSquares[k - 1][j].square.leftTop.y + MBLOCK_SIZE + 1;
+              scene.sceneSquares[k][j].square.color = scene.sceneSquares[k - 1][j].square.color;
             }
           i = 0;
         }
