@@ -4,6 +4,7 @@ typedef struct
 {
   POINT leftTop;
   COLORREF color;
+  int isEmpty;
 }MSQUARE;//квадратики, из которых состоят фигуры
 
 typedef struct
@@ -12,16 +13,10 @@ typedef struct
   POINT center;
 }MFIGURE;
 
-typedef struct
-{
-  MSQUARE square;
-  int isEmpty;
-}SCENESQUARE;
-
 struct MSCENE
 {
   int rightWall, downWall;
-  SCENESQUARE sceneSquares[20][10];
+  MSQUARE sceneSquares[20][10];
   MFIGURE figure;
   int score;
 }scene;
@@ -218,7 +213,7 @@ void PaintScene(HDC hdc)
     for (int i = 0; i < 20; i++)
       for (int j = 0; j < 10; j++)
         if (!scene.sceneSquares[i][j].isEmpty)
-          PaintSquare(hdc, scene.sceneSquares[i][j].square);
+          PaintSquare(hdc, scene.sceneSquares[i][j]);
 
     for (int i = 0; i < 4; i++)
       PaintSquare(hdc, scene.figure.squares[i]);
@@ -364,8 +359,8 @@ int GameTick()
           if (scene.score > record)
             record = scene.score;
         }
+        scene.sceneSquares[indexI][indexJ] = scene.figure.squares[i];
         scene.sceneSquares[indexI][indexJ].isEmpty = FALSE;
-        scene.sceneSquares[indexI][indexJ].square = scene.figure.squares[i];
       }
 
       if (CreateFigure());//gameover
@@ -387,9 +382,9 @@ int GameTick()
             for (int j = 0; j < 10; j++)
             {
               scene.sceneSquares[k][j].isEmpty = scene.sceneSquares[k - 1][j].isEmpty;
-              scene.sceneSquares[k][j].square.leftTop.x = scene.sceneSquares[k - 1][j].square.leftTop.x;
-              scene.sceneSquares[k][j].square.leftTop.y = scene.sceneSquares[k - 1][j].square.leftTop.y + MBLOCK_SIZE + 1;
-              scene.sceneSquares[k][j].square.color = scene.sceneSquares[k - 1][j].square.color;
+              scene.sceneSquares[k][j].leftTop.x = scene.sceneSquares[k - 1][j].leftTop.x;
+              scene.sceneSquares[k][j].leftTop.y = scene.sceneSquares[k - 1][j].leftTop.y + MBLOCK_SIZE + 1;
+              scene.sceneSquares[k][j].color = scene.sceneSquares[k - 1][j].color;
             }
           i = 0;
         }

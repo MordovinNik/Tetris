@@ -3,7 +3,6 @@
 // PVS-Studio Static Code Analyzer for C, C++ and C#: http://www.viva64.com
 #include "Menu.h"
 
-
 enum COMMANDS
 {
   FAIL, MENU_BEGIN, WINDOW_BEGIN, BUTTON, WINDOW_END, MENU_END
