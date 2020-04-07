@@ -3,31 +3,6 @@
 // PVS-Studio Static Code Analyzer for C, C++ and C#: http://www.viva64.com
 #include "Menu.h"
 
-typedef struct
-{
-  BOOLEAN isActive;
-  POINT leftPos, rightPos;
-  COLORREF Color, HiglightColor;
-  LPSTR name;
-  int TriggerWindowCode;//код окна которое будет открывать эта кнопка при наведении или нажатии (<0 если она не должна взаимодействовать с окнами)
-}MYBUTTON;
-
-typedef struct
-{
-  BOOLEAN isActive;
-  MYBUTTON *buttons;
-  int numberOfButtons;
-  int WindowCode;//<0 если окно отображается сразу иначе будет отображено только если будет активна кнопка с кодом этого окна
-  COLORREF Color;
-  POINT leftPos, rightPos;
-}MYWINDOW;
-
-typedef struct
-{
-  MYWINDOW *windows;
-  int numberOfWindows;
-}MYMENU;
-
 enum COMMANDS
 {
   FAIL, MENU_BEGIN, WINDOW_BEGIN, BUTTON, WINDOW_END, MENU_END
@@ -56,7 +31,7 @@ int GetDigit(FILE* stream, int* c)
 
   do
   {
-    str[strIndex] = *c;
+    str[strIndex] = (char)*c;
     strIndex++;
 
   } while (isdigit(*c = getc(stream)));
@@ -75,7 +50,7 @@ int GetButtonName(FILE* stream, char* str, int* currentChar)
 
   while ((*currentChar = getc(stream)) != '\"' && i < 257)
   {
-    str[i] = *currentChar;
+    str[i] = (char)*currentChar;
     i++;
   }
   return 0;
@@ -138,7 +113,7 @@ int GetButtonProperties(FILE* stream, MYBUTTON* button, int currentChar)
   return 0;
 }
 
-void DeleteMyMenu(void *menuVoid)
+void DeleteMyMenu(MYMENU *menuVoid)
 {
   MYMENU *menu = (MYMENU*)menuVoid;
   for (int i = 0; i < menu->numberOfWindows; i++)
@@ -152,7 +127,7 @@ void DeleteMyMenu(void *menuVoid)
   free(menu);
 }
 
-void* GetMenuProperties(FILE* stream)
+MYMENU* GetMenuProperties(FILE* stream)
 {
   //инициализируем структуру меню
   MYMENU *Menu = malloc(sizeof(MYMENU));
@@ -293,7 +268,7 @@ void SetWindowActive(MYMENU* menu, int code, BOOLEAN isActive)
       menu->windows[i].isActive = isActive;
 }
 
-LPSTR SetActiveElement(void* menuV, MKEY key)
+LPSTR SetActiveElement(MYMENU* menuV, MKEY key)
 {
   MYMENU *menu = (MYMENU*)menuV;
   int indexI = -1, indexJ = -1;
@@ -407,7 +382,7 @@ LPSTR SetActiveElement(void* menuV, MKEY key)
   return NULL;
 }
 
-int PaintMenu(void* menuVoid, HDC hdc)
+int PaintMenu(MYMENU* menuVoid, HDC hdc)
 {
   MYMENU * menu = (MYMENU*)menuVoid;
 
@@ -435,7 +410,7 @@ int PaintMenu(void* menuVoid, HDC hdc)
       //нарисовать кнопку
       MYBUTTON button = menu->windows[i].buttons[j];
       HBRUSH hButtonBrush;
-      HPEN hBorderPen = CreatePen(PS_SOLID, 1, RGB(0, 0, 0));
+      hBorderPen = CreatePen(PS_SOLID, 1, RGB(0, 0, 0));
 
       if (button.isActive)
       {
